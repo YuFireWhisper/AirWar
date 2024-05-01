@@ -2,6 +2,30 @@ import pygame
 import random
 import pygame.freetype
 import os
+import json
+
+os.chdir(r"E:\Program\Dev\Private_code\AirWar")
+
+
+def save_game_score(game_name, score):
+    try:
+        with open("game_info.json", "r") as f:
+            game_info = json.load(f)
+    except FileNotFoundError:
+        game_info = {}
+
+    for game in game_info.values():
+        if game["game_name"] == game_name:
+            if "high_score" not in game:
+                game["high_score"] = score
+            else:
+                game["high_score"] = max(game["high_score"], score)
+            break
+    else:
+        game_info[game_name] = {"high_score": score}
+
+    with open("game_info.json", "w") as f:
+        json.dump(game_info, f)
 
 class Game:
     SCREEN_WIDTH = 1920
@@ -25,6 +49,7 @@ class Game:
         self.enemy_bullets = []
         self.score = 0
         self.last_score_increment_time = pygame.time.get_ticks()
+        self.game_over = False
 
     def load_assets(self):
         assets = {}
@@ -37,6 +62,8 @@ class Game:
         assets["bullet_big"] = pygame.image.load(os.path.join(assets_dir, "bullet_big.png")).convert_alpha()
         assets["bullet_middle"] = pygame.image.load(os.path.join(assets_dir, "bullet_middle.png")).convert_alpha()
         assets["bullet_small"] = pygame.image.load(os.path.join(assets_dir, "bullet_small.png")).convert_alpha()
+        assets["game_over"] = pygame.image.load(os.path.join(assets_dir, "game_over.png")).convert_alpha()
+        assets["again"] = pygame.image.load(os.path.join(assets_dir, "again.png")).convert_alpha()
 
         for enemy_type in ["boss", "middle_1", "middle_2", "small_1", "small_2"]:
             assets[enemy_type] = pygame.image.load(os.path.join(assets_dir, f"enemy_{enemy_type}.png")).convert_alpha()
@@ -46,7 +73,8 @@ class Game:
     def run(self):
         while True:
             self.handle_events()
-            self.update_game_state()
+            if not self.game_over:
+                self.update_game_state()
             self.draw()
             self.clock.tick(self.FPS)
 
@@ -60,6 +88,10 @@ class Game:
             elif event.type == pygame.KEYUP:
                 if event.key == pygame.K_SPACE:
                     self.player.stop_fire()
+            elif event.type == pygame.MOUSEBUTTONDOWN and self.game_over:
+                # 檢查是否點擊了重新遊戲按鈕
+                if self.again_rect.collidepoint(event.pos):
+                    self.restart_game()
 
     def update_game_state(self):
         self.player.update()
@@ -69,6 +101,8 @@ class Game:
         self.update_bullets()
         self.update_enemy_bullets()
         self.update_score()
+        if self.player.health <= 0:
+            self.game_over = True
 
     def draw(self):
         self.screen.fill((255, 255, 255))
@@ -79,7 +113,10 @@ class Game:
             bullet.draw(self.screen)
         for bullet in self.enemy_bullets:
             bullet.draw(self.screen)
-        self.draw_hud()
+        if self.game_over:
+            self.draw_game_over()
+        else:
+            self.draw_hud()
         pygame.display.flip()
 
     def spawn_enemies(self):
@@ -98,7 +135,6 @@ class Game:
                         self.bullets.remove(bullet)
                         enemy.health -= bullet.hit
                         if enemy.health <= 0:
-                            # 移除與被擊殺敵人相關聯的所有子彈
                             for bullet in enemy.bullets:
                                 if bullet in self.enemy_bullets:
                                     self.enemy_bullets.remove(bullet)
@@ -109,7 +145,7 @@ class Game:
                     self.player.health -= 5
                     self.enemies.remove(enemy)
                     if self.player.health <= 0:
-                        self.quit()
+                        self.game_over = True
 
     def update_enemy_bullets(self):
         for bullet in self.enemy_bullets[:]:
@@ -119,7 +155,7 @@ class Game:
                 self.player.health -= bullet.hit
                 self.enemy_bullets.remove(bullet)
                 if self.player.health <= 0:
-                    self.quit()
+                    self.game_over = True
 
     def update_bullets(self):
         for bullet in self.bullets[:]:
@@ -135,11 +171,32 @@ class Game:
         health_text_surface, _ = self.font.render(f"Health: {self.player.health}", (0, 0, 0))
         self.screen.blit(health_text_surface, (10, 100))
 
+    def draw_game_over(self):
+        self.screen.fill((255, 255, 255))
+        game_over_image = pygame.transform.scale(self.assets["game_over"], (self.assets["game_over"].get_width() // 4, self.assets["game_over"].get_height() // 4))
+        game_over_rect = game_over_image.get_rect()
+        game_over_rect.center = (self.SCREEN_WIDTH // 2, self.SCREEN_HEIGHT // 2 - 100)  # 調整位置
+        self.screen.blit(game_over_image, game_over_rect)
+
+        again_image = pygame.transform.scale(self.assets["again"], (self.assets["again"].get_width() // 4, self.assets["again"].get_height() // 4))
+        again_rect = again_image.get_rect()
+        again_rect.center = (self.SCREEN_WIDTH // 2, self.SCREEN_HEIGHT // 2 + 100)  # 調整位置
+        self.again_rect = self.screen.blit(again_image, again_rect)
+        save_game_score("AirWar", self.score)
+
     def update_score(self):
         now = pygame.time.get_ticks()
         if now - self.last_score_increment_time >= 1000:
             self.score += self.SCORE_INCREMENT_PER_SECOND
             self.last_score_increment_time = now
+
+    def restart_game(self):
+        self.player.health = 10
+        self.score = 0
+        self.enemies.clear()
+        self.bullets.clear()
+        self.enemy_bullets.clear()
+        self.game_over = False
 
     def quit(self):
         pygame.quit()
