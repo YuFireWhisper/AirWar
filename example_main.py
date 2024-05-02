@@ -4,52 +4,46 @@ import pygame.freetype
 import os
 import json
 
-from pygame.sprite import _Group
+os.chdir(r"E:\Program\Dev\Private_code\AirWar")
 
 
-# def save_game_score(game_name, score):
-#     try:
-#         with open("game_info.json", "r") as f:
-#             game_info = json.load(f)
-#     except FileNotFoundError:
-#         game_info = {}
+def save_game_score(game_name, score):
+    try:
+        with open("game_info.json", "r") as f:
+            game_info = json.load(f)
+    except FileNotFoundError:
+        game_info = {}
 
-#     for game in game_info.values():
-#         if game["game_name"] == game_name:
-#             if "high_score" not in game:
-#                 game["high_score"] = score
-#             else:
-#                 game["high_score"] = max(game["high_score"], score)
-#             break
-#     else:
-#         game_info[game_name] = {"high_score": score}
+    for game in game_info.values():
+        if game["game_name"] == game_name:
+            if "high_score" not in game:
+                game["high_score"] = score
+            else:
+                game["high_score"] = max(game["high_score"], score)
+            break
+    else:
+        game_info[game_name] = {"high_score": score}
 
-#     with open("game_info.json", "w") as f:
-#         json.dump(game_info, f)
-
-SCREEN_WIDTH = 1920
-SCREEN_HEIGHT = 1080
-FPS = 60
-PLAYER_SPEED = 5
-ENEMY_SPAWN_RATE = 100
-BULLET_SPEED = 10
-SCORE_INCREMENT_PER_SECOND = 3
-FONT_SIZE = 72
-
-pygame.init()
-screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.FULLSCREEN)
-clock = pygame.time.Clock()
-font = pygame.freetype.Font(os.path.join("font", "mexcellent.otf"), FONT_SIZE)
-
-all_sprites = pygame.sprite.Group()
-
+    with open("game_info.json", "w") as f:
+        json.dump(game_info, f)
 
 class Game:
-    """遊戲主控的class"""
+    SCREEN_WIDTH = 1920
+    SCREEN_HEIGHT = 1080
+    FPS = 60
+    PLAYER_SPEED = 5
+    ENEMY_SPAWN_RATE = 100
+    BULLET_SPEED = 10
+    SCORE_INCREMENT_PER_SECOND = 3
+    FONT_SIZE = 72
 
     def __init__(self):
-        self.load_assets()
-        self.space_ship = Player(self)
+        pygame.init()
+        self.screen = pygame.display.set_mode((self.SCREEN_WIDTH, self.SCREEN_HEIGHT), pygame.FULLSCREEN)
+        self.clock = pygame.time.Clock()
+        self.font = pygame.freetype.Font(os.path.join("font", "mexcellent.otf"), self.FONT_SIZE)
+        self.assets = self.load_assets()
+        self.player = Player(self)
         self.enemies = []
         self.bullets = []
         self.enemy_bullets = []
@@ -57,26 +51,24 @@ class Game:
         self.last_score_increment_time = pygame.time.get_ticks()
         self.game_over = False
 
-    # def load_assets(self):
-    #     assets = {}
-    #     assets_dir = "public"
-    #     for asset_file in os.listdir(assets_dir):
-    #         asset_path = os.path.join(assets_dir, asset_file)
-    #         assets[asset_file.split(".")[0]] = pygame.image.load(asset_path).convert_alpha()
+    def load_assets(self):
+        assets = {}
+        assets_dir = "public"
+        for asset_file in os.listdir(assets_dir):
+            asset_path = os.path.join(assets_dir, asset_file)
+            assets[asset_file.split(".")[0]] = pygame.image.load(asset_path).convert_alpha()
 
-    #     assets["bullet_player"] = pygame.image.load(os.path.join(assets_dir, "bullet_player.png")).convert_alpha()
-    #     assets["bullet_big"] = pygame.image.load(os.path.join(assets_dir, "bullet_big.png")).convert_alpha()
-    #     assets["bullet_middle"] = pygame.image.load(os.path.join(assets_dir, "bullet_middle.png")).convert_alpha()
-    #     assets["bullet_small"] = pygame.image.load(os.path.join(assets_dir, "bullet_small.png")).convert_alpha()
-    #     assets["game_over"] = pygame.image.load(os.path.join(assets_dir, "game_over.png")).convert_alpha()
-    #     assets["again"] = pygame.image.load(os.path.join(assets_dir, "again.png")).convert_alpha()
+        assets["bullet"] = pygame.image.load(os.path.join(assets_dir, "bullet_player.png")).convert_alpha()
+        assets["bullet_big"] = pygame.image.load(os.path.join(assets_dir, "bullet_big.png")).convert_alpha()
+        assets["bullet_middle"] = pygame.image.load(os.path.join(assets_dir, "bullet_middle.png")).convert_alpha()
+        assets["bullet_small"] = pygame.image.load(os.path.join(assets_dir, "bullet_small.png")).convert_alpha()
+        assets["game_over"] = pygame.image.load(os.path.join(assets_dir, "game_over.png")).convert_alpha()
+        assets["again"] = pygame.image.load(os.path.join(assets_dir, "again.png")).convert_alpha()
 
-    #     for enemy_type in ["boss", "middle_1", "middle_2", "small_1", "small_2"]:
-    #         assets[enemy_type] = pygame.image.load(os.path.join(assets_dir, f"enemy_{enemy_type}.png")).convert_alpha()
+        for enemy_type in ["boss", "middle_1", "middle_2", "small_1", "small_2"]:
+            assets[enemy_type] = pygame.image.load(os.path.join(assets_dir, f"enemy_{enemy_type}.png")).convert_alpha()
 
-    #     return assets
-    def load_assets(self) -> None:
-        """加載物件"""
+        return assets
 
     def run(self):
         while True:
@@ -92,29 +84,29 @@ class Game:
                 self.quit()
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE:
-                    self.space_ship.start_fire()
+                    self.player.start_fire()
             elif event.type == pygame.KEYUP:
                 if event.key == pygame.K_SPACE:
-                    self.space_ship.stop_fire()
+                    self.player.stop_fire()
             elif event.type == pygame.MOUSEBUTTONDOWN and self.game_over:
                 # 檢查是否點擊了重新遊戲按鈕
                 if self.again_rect.collidepoint(event.pos):
                     self.restart_game()
 
     def update_game_state(self):
-        self.space_ship.update()
-        self.space_ship.move()
+        self.player.update()
+        self.player.move()
         self.spawn_enemies()
         self.update_enemies()
         self.update_bullets()
         self.update_enemy_bullets()
         self.update_score()
-        if self.space_ship.health <= 0:
+        if self.player.health <= 0:
             self.game_over = True
 
     def draw(self):
         self.screen.fill((255, 255, 255))
-        self.space_ship.draw(self.screen)
+        self.player.draw(self.screen)
         for enemy in self.enemies:
             enemy.draw(self.screen)
         for bullet in self.bullets:
@@ -149,20 +141,20 @@ class Game:
                             self.enemies.remove(enemy)
                             self.score += enemy.score
                             
-                if self.space_ship.rect.colliderect(enemy.rect):
-                    self.space_ship.health -= 5
+                if self.player.rect.colliderect(enemy.rect):
+                    self.player.health -= 5
                     self.enemies.remove(enemy)
-                    if self.space_ship.health <= 0:
+                    if self.player.health <= 0:
                         self.game_over = True
 
     def update_enemy_bullets(self):
         for bullet in self.enemy_bullets[:]:
             if bullet.update():
                 self.enemy_bullets.remove(bullet)
-            elif bullet.rect.colliderect(self.space_ship.rect):
-                self.space_ship.health -= bullet.hit
+            elif bullet.rect.colliderect(self.player.rect):
+                self.player.health -= bullet.hit
                 self.enemy_bullets.remove(bullet)
-                if self.space_ship.health <= 0:
+                if self.player.health <= 0:
                     self.game_over = True
 
     def update_bullets(self):
@@ -176,7 +168,7 @@ class Game:
         score_text_surface, _ = self.font.render(f"Score: {self.score}", (0, 0, 0))
         self.screen.blit(score_text_surface, (10, 10))
 
-        health_text_surface, _ = self.font.render(f"Health: {self.space_ship.health}", (0, 0, 0))
+        health_text_surface, _ = self.font.render(f"Health: {self.player.health}", (0, 0, 0))
         self.screen.blit(health_text_surface, (10, 100))
 
     def draw_game_over(self):
@@ -190,7 +182,7 @@ class Game:
         again_rect = again_image.get_rect()
         again_rect.center = (self.SCREEN_WIDTH // 2, self.SCREEN_HEIGHT // 2 + 100)  # 調整位置
         self.again_rect = self.screen.blit(again_image, again_rect)
-        # save_game_score("AirWar", self.score)
+        save_game_score("AirWar", self.score)
 
     def update_score(self):
         now = pygame.time.get_ticks()
@@ -199,50 +191,48 @@ class Game:
             self.last_score_increment_time = now
 
     def restart_game(self):
-        self.space_ship.health = 10
+        self.player.health = 10
         self.score = 0
         self.enemies.clear()
         self.bullets.clear()
         self.enemy_bullets.clear()
         self.game_over = False
-        # save_game_score("AirWar", self.score)
+        save_game_score("AirWar", self.score)
 
     def quit(self):
         pygame.quit()
         quit()
 
-
-class Player(pygame.sprite.Sprite):
-    def __init__(self, playground_info: Game):
-        super.__init__()
-        self.image = pygame.image.load("public/player.png").convert_alpha()
-        self.image = pygame.transform.scale(self.image, (self.image.get_width() // 4, self.image.get_height() // 4))
-        self.rect = self.image.get_rect()
-        self.rect.centerx = SCREEN_HEIGHT // 2 - self.rect.width // 2
-        self.rect.centery = SCREEN_WIDTH - self.rect.height
-        self.playground_info = playground_info
+class Player:
+    def __init__(self, screen_info):
+        self.player = pygame.image.load(PLAYER_IMAGE).convert_alpha()
+        self.player = pygame.transform.scale(self.player, (self.player.get_width() // 4, self.player.get_height() // 4))
+        self.player_rect = self.player.get_rect()
+        self.player_rect.x = screen_info.current_w // 2 - self.player_rect.width // 2
+        self.player_rect.y = screen_info.current_h - self.player_rect.height
+        self.screen_info = screen_info
         self.speed = 10  # 移動速度
 
-    # def update(self):
-    #     keys = pygame.key.get_pressed()
-    #     if keys[pygame.K_LEFT]:
-    #         if self.rect.left > 0:
-    #             self.rect.x -= self.speed
-    #     if keys[pygame.K_RIGHT]:
-    #         if self.rect.right < self.playground_info.SCREEN_WIDTH:
-    #             self.rect.x += self.speed
+    def update(self):
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_LEFT]:
+            if self.player_rect.x > 0:
+                self.player_rect.x -= self.speed
+        elif keys[pygame.K_RIGHT]:
+            if self.player_rect.x < self.screen_info.current_w - self.player_rect.width:
+                self.player_rect.x += self.speed
 
     def move(self):
         keys = pygame.key.get_pressed()
         if keys[pygame.K_LEFT]:
-            self.rect.x -= self.speed
+            self.rect.x -= self.game.PLAYER_SPEED
         if keys[pygame.K_RIGHT]:
-            self.rect.x += self.speed
+            self.rect.x += self.game.PLAYER_SPEED
         if keys[pygame.K_UP]:
-            self.rect.y -= self.speed
+            self.rect.y -= self.game.PLAYER_SPEED
         if keys[pygame.K_DOWN]:
-            self.rect.y += self.speed
-        self.rect.clamp_ip(screen.get_rect())
+            self.rect.y += self.game.PLAYER_SPEED
+        self.rect.clamp_ip(self.screen.get_rect())
 
     def draw(self, screen):
         screen.blit(self.image, self.rect)
@@ -266,31 +256,6 @@ class Player(pygame.sprite.Sprite):
         bullet_image_scaled = pygame.transform.scale(self.game.assets["bullet"], (self.game.assets["bullet"].get_width() // 12, self.game.assets["bullet"].get_height() // 12))
         bullet = Bullet(self.game, self.rect.midtop, bullet_image_scaled, self.game.BULLET_SPEED, hit=10, screen=self.screen)
         self.game.bullets.append(bullet)
-
-
-class bullet_player(pygame.sprite.Sprite):
-    """玩家用子彈"""
-
-    def __init__(self, playground_info: Game) -> None:
-        super.__init__()
-        self.speed = 4
-        self.hit = 1
-        self.image = pygame.image.load("public/bullet_player.png")
-        self.rect = self.image.get_rect()
-        self.rect.centerx = playground_info.space_ship.rect.x
-        self.rect.centery = playground_info.space_ship.rect.top
-        self.playground_info = playground_info
-
-    def update(self) -> None:
-        """更新玩家用子彈"""
-        self.rect.y += self.speed
-        if self.rect.bottom < 0:
-            self.kill()
-        if pygame.sprite.spritecollide(self, self.playground_info.enemies, False):
-            for enemie in self.playground_info.enemies:
-                enemie.health -= self.hit
-            self.kill()
-
 
 class Enemy(pygame.sprite.Sprite):
     def __init__(self, screen, image, enemy_type, game):
@@ -363,7 +328,6 @@ class Enemy(pygame.sprite.Sprite):
         else:
             return random.choice([1, 2])
 
-
 class Bullet:
     def __init__(self, game, pos, image, speed, hit, screen):
         self.game = game
@@ -383,7 +347,6 @@ class Bullet:
 
     def draw(self, screen):
         screen.blit(self.image, self.rect)
-
 
 if __name__ == "__main__":
     game = Game()
