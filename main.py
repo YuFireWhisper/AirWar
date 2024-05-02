@@ -120,7 +120,7 @@ class Game:
         pygame.display.flip()
 
     def spawn_enemies(self):
-        if pygame.time.get_ticks() % self.ENEMY_SPAWN_RATE == 0:
+        if pygame.time.get_ticks() % 100 == 0:
             enemy_type = random.choice(["boss", "middle_1", "middle_2", "small_1", "small_2"])
             enemy = Enemy(self.screen, self.assets[enemy_type], enemy_type, self)
             self.enemies.append(enemy)
@@ -197,25 +197,30 @@ class Game:
         self.bullets.clear()
         self.enemy_bullets.clear()
         self.game_over = False
+        save_game_score("AirWar", self.score)
 
     def quit(self):
         pygame.quit()
         quit()
 
 class Player:
-    def __init__(self, game):
-        self.game = game
-        self.screen = game.screen
-        self.image = game.assets["player"]
-        rect = self.image.get_rect()
-        self.image = pygame.transform.scale(self.image, (rect.width // 8, rect.height // 8))
-        self.rect = self.image.get_rect()
-        self.rect.centerx = game.SCREEN_WIDTH // 2
-        self.rect.bottom = game.SCREEN_HEIGHT - 10
-        self.is_firing = False
-        self.last_shot_time = 0
-        self.shoot_delay = 100
-        self.health = 10
+    def __init__(self, screen_info):
+        self.player = pygame.image.load(PLAYER_IMAGE).convert_alpha()
+        self.player = pygame.transform.scale(self.player, (self.player.get_width() // 4, self.player.get_height() // 4))
+        self.player_rect = self.player.get_rect()
+        self.player_rect.x = screen_info.current_w // 2 - self.player_rect.width // 2
+        self.player_rect.y = screen_info.current_h - self.player_rect.height
+        self.screen_info = screen_info
+        self.speed = 10  # 移動速度
+
+    def update(self):
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_LEFT]:
+            if self.player_rect.x > 0:
+                self.player_rect.x -= self.speed
+        elif keys[pygame.K_RIGHT]:
+            if self.player_rect.x < self.screen_info.current_w - self.player_rect.width:
+                self.player_rect.x += self.speed
 
     def move(self):
         keys = pygame.key.get_pressed()
@@ -223,6 +228,10 @@ class Player:
             self.rect.x -= self.game.PLAYER_SPEED
         if keys[pygame.K_RIGHT]:
             self.rect.x += self.game.PLAYER_SPEED
+        if keys[pygame.K_UP]:
+            self.rect.y -= self.game.PLAYER_SPEED
+        if keys[pygame.K_DOWN]:
+            self.rect.y += self.game.PLAYER_SPEED
         self.rect.clamp_ip(self.screen.get_rect())
 
     def draw(self, screen):
@@ -263,6 +272,7 @@ class Enemy(pygame.sprite.Sprite):
         self.last_shot_time = 0
         self.shoot_delay = 1000
         self.set_enemy_properties(enemy_type)
+        self.shots_remaining = self.get_random_shots_remaining()
 
     def set_enemy_properties(self, enemy_type):
         if enemy_type == "small_1" or enemy_type == "small_2":
@@ -297,13 +307,26 @@ class Enemy(pygame.sprite.Sprite):
         return self.rect.top > self.game.SCREEN_HEIGHT
 
     def shoot(self):
-        bullet = Bullet(self.screen, self.rect.midbottom, pygame.transform.scale(self.bullet_image, (self.bullet_image.get_width() // 12, self.bullet_image.get_height() // 12)), self.bullet_speed, hit=self.hit, screen=self.screen)
-        bullet.owner = "enemy"
-        self.game.enemy_bullets.append(bullet)
-        self.bullets.append(bullet)
+        if self.shots_remaining > 0:
+            bullet = Bullet(self.screen, self.rect.midbottom, pygame.transform.scale(self.bullet_image, (self.bullet_image.get_width() // 12, self.bullet_image.get_height() // 12)), self.bullet_speed, hit=self.hit, screen=self.screen)
+            bullet.owner = "enemy"
+            self.game.enemy_bullets.append(bullet)
+            self.bullets.append(bullet)
+            self.shots_remaining -= 1
+        else:
+            self.shots_remaining = self.get_random_shots_remaining()
+            self.shoot_delay = random.randint(1500, 3000)
 
     def draw(self, screen):
         screen.blit(self.image, self.rect)
+
+    def get_random_shots_remaining(self):
+        if self.speed == 3:
+            return random.choice([3, 4, 5])
+        elif self.speed == 2:
+            return random.choice([1, 2, 3])
+        else:
+            return random.choice([1, 2])
 
 class Bullet:
     def __init__(self, game, pos, image, speed, hit, screen):
