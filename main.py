@@ -39,6 +39,7 @@ FONT_SIZE = 72
 
 # 常用RGB
 BLACK = (0, 0, 0)
+WHITE = (255, 255, 255)
 
 pygame.init()
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.FULLSCREEN)
@@ -55,7 +56,7 @@ class Game:
         self.load_assets()
         self.space_ship = Player(self)
         all_sprites.add(self.space_ship)
-        self.enemies = []
+        self.enemies = set()
         self.bullets = []
         self.enemy_bullets = []
         self.score = 0
@@ -115,7 +116,7 @@ class Game:
             self.game_over = True
 
     def draw(self):
-        screen.fill(BLACK)
+        screen.fill(WHITE)
         all_sprites.draw(screen)
         # self.space_ship.draw()
         # for enemy in self.enemies:
@@ -134,29 +135,34 @@ class Game:
         if pygame.time.get_ticks() % 100 == 0:
             enemy_type = random.choice(["boss", "middle_1", "middle_2", "small_1", "small_2"])
             enemy = Enemy(self.assets[enemy_type], enemy_type, self)
-            self.enemies.append(enemy)
+            self.enemies.add(enemy)
 
     def update_enemies(self):
         for enemy in self.enemies[:]:
-            if enemy.update():
+            # if enemy.update():
+            #     self.enemies.remove(enemy)
+            # else:
+            for bullet in self.bullets[:]:
+                if not (bullet.owner == "player" and bullet.rect.colliderect(enemy.rect)):
+                    continue
+                self.bullets.remove(bullet)
+                # enemy.health -= bullet.hit
+                if enemy.health > 0:
+                    continue
+                # for bullet in enemy.bullets:
+                #     if bullet in self.enemy_bullets:
+                #         self.enemy_bullets.remove(bullet)
+                for bullet in self.enemy_bullets:
+                    if bullet in enemy.bullets:
+                        self.enemy_bullets.remove(bullet)
                 self.enemies.remove(enemy)
-            else:
-                for bullet in self.bullets[:]:
-                    if bullet.owner == "player" and bullet.rect.colliderect(enemy.rect):
-                        self.bullets.remove(bullet)
-                        enemy.health -= bullet.hit
-                        if enemy.health <= 0:
-                            for bullet in enemy.bullets:
-                                if bullet in self.enemy_bullets:
-                                    self.enemy_bullets.remove(bullet)
-                            self.enemies.remove(enemy)
-                            self.score += enemy.score
-                            
-                if self.space_ship.rect.colliderect(enemy.rect):
-                    self.space_ship.health -= 5
-                    self.enemies.remove(enemy)
-                    if self.space_ship.health <= 0:
-                        self.game_over = True
+                self.score += enemy.score
+
+            if self.space_ship.rect.colliderect(enemy.rect):
+                self.space_ship.health -= 5
+                self.enemies.remove(enemy)
+                if self.space_ship.health <= 0:
+                    self.game_over = True
 
     def update_enemy_bullets(self):
         for bullet in self.enemy_bullets[:]:
@@ -183,7 +189,7 @@ class Game:
         screen.blit(health_text_surface, (10, 100))
 
     def draw_game_over(self):
-        screen.fill(BLACK)
+        screen.fill(WHITE)
         game_over_image = pygame.transform.scale(self.assets["game_over"], (self.assets["game_over"].get_width() // 4, self.assets["game_over"].get_height() // 4))
         game_over_rect = game_over_image.get_rect()
         game_over_rect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 100)  # 調整位置
@@ -226,7 +232,9 @@ class Player(pygame.sprite.Sprite):
         self.rect.centerx = SCREEN_HEIGHT // 2 - self.rect.width // 2
         self.rect.centery = SCREEN_WIDTH - self.rect.height
         self.playground_info = playground_info
+        self.shoot_delay = 100
         self.speed = 10  # 移動速度
+        self.health = 50
 
     def update(self):
         keys = pygame.key.get_pressed()
@@ -258,31 +266,32 @@ class Player(pygame.sprite.Sprite):
     def fire_bullet(self):
         bullet_image_scaled = pygame.transform.scale(self.playground_info.assets["bullet"], (self.playground_info.assets["bullet"].get_width() // 12, self.playground_info.assets["bullet"].get_height() // 12))
         bullet = Bullet(self.playground_info, self.rect.midtop, bullet_image_scaled, BULLET_SPEED, hit=10)
+        all_sprites.add(bullet)
         self.playground_info.bullets.append(bullet)
 
 
-class bullet_player(pygame.sprite.Sprite):
-    """玩家用子彈"""
+# class bullet_player(pygame.sprite.Sprite):
+#     """玩家用子彈"""
 
-    def __init__(self, playground_info: Game) -> None:
-        super.__init__()
-        self.speed = 4
-        self.hit = 1
-        self.image = pygame.image.load("public/bullet_player.png")
-        self.rect = self.image.get_rect()
-        self.rect.centerx = playground_info.space_ship.rect.x
-        self.rect.centery = playground_info.space_ship.rect.top
-        self.playground_info = playground_info
+#     def __init__(self, playground_info: Game) -> None:
+#         super.__init__()
+#         self.speed = 4
+#         self.hit = 1
+#         self.image = pygame.image.load("public/bullet_player.png")
+#         self.rect = self.image.get_rect()
+#         self.rect.centerx = playground_info.space_ship.rect.x
+#         self.rect.centery = playground_info.space_ship.rect.top
+#         self.playground_info = playground_info
 
-    def update(self) -> None:
-        """更新玩家用子彈"""
-        self.rect.y += self.speed
-        if self.rect.bottom < 0:
-            self.kill()
-        if pygame.sprite.spritecollide(self, self.playground_info.enemies, False):
-            for enemie in self.playground_info.enemies:
-                enemie.health -= self.hit
-            self.kill()
+#     def update(self) -> None:
+#         """更新玩家用子彈"""
+#         self.rect.y += self.speed
+#         if self.rect.bottom < 0:
+#             self.kill()
+#         if pygame.sprite.spritecollide(self, self.playground_info.enemies, False):
+#             for enemie in self.playground_info.enemies:
+#                 enemie.health -= self.hit
+#             self.kill()
 
 
 class Enemy(pygame.sprite.Sprite):
@@ -360,6 +369,7 @@ class Bullet(pygame.sprite.Sprite):
     """子彈"""
 
     def __init__(self, playground_info: Game, pos: int, image, speed: int, hit: int):
+        super.__init__()
         self.playground_info = playground_info
         self.image = image
         self.rect = image.get_rect(midbottom=pos)
@@ -367,12 +377,26 @@ class Bullet(pygame.sprite.Sprite):
         self.speed = speed
         self.hit = hit
 
-    def update(self):
+    def update(self) -> None:
         if self.owner == "player":
             self.rect.y -= self.speed
         else:
             self.rect.y += self.speed
-        return self.rect.bottom < 0 or self.rect.top > self.screen.get_height()
+        if self.rect.bottom < 0:
+            self.kill()
+            return
+        if self.rect.top > screen.get_height():
+            self.kill()
+            return
+        if self.owner == "enemy":
+            if pygame.sprite.spritecollide(self, [self.playground_info.space_ship], False):
+                self.playground_info.space_ship.health -= self.hit
+                self.kill()
+            return
+        temp_maybe_touch = pygame.sprite.spritecollide(self, self.playground_info.enemies, False)
+        if not temp_maybe_touch:
+            return
+        temp_maybe_touch[0].health -= self.hit
 
     def draw(self):
         screen.blit(self.image, self.rect)
