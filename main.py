@@ -1,3 +1,4 @@
+import time
 import os
 import pygame
 
@@ -15,14 +16,13 @@ all_sprites = pygame.sprite.Group()
 FPS = 60
 
 # 設置視窗大小
-WIDTH, HEIGHT = 1180 * 3, 548 * 3
+WIDTH, HEIGHT = 600, 800
 
 # 設定常用RGB
 BLACK = (0, 0, 0)
 
 # 設定字體
 font = pygame.font.SysFont("Arial", 108)
-final_font = pygame.font.SysFont("Arial", 600)
 
 # 視窗
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
