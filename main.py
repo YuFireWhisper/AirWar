@@ -72,3 +72,6 @@ while running:
     all_sprites.update()
     # screen.blit(board, (0, 0))
     all_sprites.draw(screen)
+    pygame.display.update()
+
+pygame.quit()
